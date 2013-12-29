@@ -14,13 +14,13 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    ../../ThirdParty/android/src/mosquitto/mosquittopp.cpp \
+    ../../ThirdParty/mosquitto/src/mosquittopp.cpp \
     ../m2mtest/subscriber.cpp
 
 
 HEADERS  += mainwindow.h \
-    ../../ThirdParty/android/include/mosquitto/mosquittopp.h \
-    ../../ThirdParty/android/include/mosquitto/mosquitto.h \
+    ../../ThirdParty/mosquitto/include/mosquitto/mosquittopp.h \
+    ../../ThirdParty/mosquitto/include/mosquitto/mosquitto.h \
     ../m2mtest/subscriber.h
 
 FORMS    += mainwindow.ui
@@ -28,15 +28,13 @@ FORMS    += mainwindow.ui
 CONFIG += mobility
 MOBILITY = 
 
-unix:!android: LIBS += -L$$PWD/../../../../theirs/mosquitto-1.2.3/lib/
-android: LIBS += -L$$PWD/../../ThirdParty/android/lib/
+unix:!android: LIBS += -L$$PWD/../../ThirdParty/mosquitto/lib/linux64/
+android: LIBS += -L$$PWD/../../ThirdParty/mosquitto/lib/android/
 LIBS += -lmosquitto
 
-INCLUDEPATH += $$PWD/../../ThirdParty/android/include\
-                $$PWD/../../ThirdParty/android/include/mosquitto\
+INCLUDEPATH += $$PWD/../../ThirdParty/mosquitto/include\
+                $$PWD/../../ThirdParty/mosquitto/include/mosquitto\
                 $$PWD/../../Testing/m2mtest
 
-DEPENDPATH += $$PWD/../../ThirdParty/android/include
-
-android: PRE_TARGETDEPS += $$PWD/../../ThirdParty/android/lib/libmosquitto.a
-unix:!android: PRE_TARGETDEPS += $$PWD/../../../../theirs/mosquitto-1.2.3/lib/libmosquitto.a
+android: PRE_TARGETDEPS += $$PWD/../../ThirdParty/mosquitto/lib/android/libmosquitto.a
+unix:!android: PRE_TARGETDEPS += $$PWD/../../ThirdParty/mosquitto/lib/linux64/libmosquitto.a

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <mosquittopp.h>
 #include "publisher.h"
+#include <stdlib.h>
 
 //#define MQTT_SERVER "mqtt://ymvhmlxw:Ind2uLCD4IJt@m10.cloudmqtt.com"
 #define MQTT_SERVER "m10.cloudmqtt.com"
