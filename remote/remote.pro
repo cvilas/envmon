@@ -13,8 +13,32 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    indicator.cpp \
+    switchstatusindicator.cpp \
+    mqttclient.cpp \
+    ../ThirdParty/mosquitto/src/mosquittopp.cpp \
+    connectionstatusindicator.cpp \
+    stationstatusindicator.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    indicator.h \
+    switchstatusindicator.h \
+    ../connection_info.h \
+    mqttclient.h \
+    ../ThirdParty/mosquitto/include/mosquitto/mosquitto.h \
+    ../ThirdParty/mosquitto/include/mosquitto/mosquittopp.h \
+    connectionstatusindicator.h \
+    stationstatusindicator.h
+
+unix:!android:LIBS += -L$$PWD/../ThirdParty/mosquitto/lib/linux64/
+android:LIBS += -L$$PWD/../ThirdParty/mosquitto/lib/android/
+LIBS += -lmosquitto
+
+INCLUDEPATH += ../ \
+                ../ThirdParty/mosquitto/include/mosquitto/
 
 FORMS    += mainwindow.ui
+
+RESOURCES += \
+    resources.qrc
