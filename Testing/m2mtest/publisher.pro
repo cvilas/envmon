@@ -8,9 +8,10 @@ SOURCES += publisher_main.cpp \
     publisher.cpp
 
 
-LIBS += -L$$PWD/../../ThirdParty/mosquitto/lib/linux64/ -lmosquitto
+LIBS += -L$$PWD/../../ThirdParty/mosquitto/lib/linux64/ -lmosquitto -lpthread -lrt
 
-INCLUDEPATH += ../../ThirdParty/mosquitto/include/mosquitto/
+INCLUDEPATH += ../../ThirdParty/mosquitto/include/mosquitto/ \
+                ../../
 
 HEADERS += \
     ../../ThirdParty/mosquitto/include/mosquitto/mosquittopp.h \

@@ -6,8 +6,7 @@
 class Publisher : public mosqpp::mosquittopp
 {
 public:
-    Publisher(const char*id, const char* host, int port,
-              const char* user, const char* pass);
+    Publisher();
     ~Publisher();
 
     void on_connect(int rc);

@@ -1,18 +1,20 @@
 #include "publisher.h"
 #include <iostream>
+#include <string.h>
+#include "connection_info.h"
+#include "iota_messages.h"
 
-Publisher::Publisher(const char*id, const char* host, int port,
-                     const char* user, const char* pass)
-    : mosquittopp(id)
+Publisher::Publisher()
+    : mosquittopp(NULL)
 {
-    int rc = username_pw_set(user, pass);
+    int rc = username_pw_set(IOTA_BROKER_USER, IOTA_BROKER_PASS);
 
     if( MOSQ_ERR_SUCCESS != rc )
     {
         std::cout << "[Publisher::Publisher] username_pw_set failed" << std::endl;
     }
 
-    connect(host, port, /*keepalive*/60);
+    connect(IOTA_BROKER_URL, IOTA_BROKER_PORT, /*keepalive*/60);
 }
 
 
