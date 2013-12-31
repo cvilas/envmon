@@ -96,10 +96,13 @@ void Indicator::paintEvent(QPaintEvent* ev)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    QSize sz = pixmap.size();
-    sz.scale( ev->rect().size(), Qt::KeepAspectRatio );
+    QSize sz = pixmap.size(); // original pixmap size
+    QSize wsz = ev->rect().size(); // window size
+
+    sz.scale( wsz.boundedTo(sz), Qt::KeepAspectRatio ); // shrink, but don't grow beyond pixmap size
 
     QPixmap scaledPixmap = pixmap.scaled( sz, Qt::KeepAspectRatio, Qt::SmoothTransformation );
-    painter.drawPixmap(QPoint(), scaledPixmap);
+
+    painter.drawPixmap(QPoint( (wsz.width() - sz.width())/2, (wsz.height() - sz.height())/2 ), scaledPixmap); // draw in the center
 }
 

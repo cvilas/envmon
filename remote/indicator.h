@@ -37,6 +37,7 @@ protected:
     /// set pixmap for a state.
     void setPixmap(const QPixmap& pixmap, Indicator::state st);
 
+    /// reimplemented from base class
     void paintEvent(QPaintEvent* ev);
 
 public slots:

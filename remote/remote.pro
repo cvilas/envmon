@@ -37,7 +37,8 @@ android:LIBS += -L$$PWD/../ThirdParty/mosquitto/lib/android/
 LIBS += -lmosquitto
 
 INCLUDEPATH += ../ \
-                ../ThirdParty/mosquitto/include/mosquitto/
+                ../ThirdParty/mosquitto/include/mosquitto/ \
+                ../station/
 
 FORMS    += mainwindow.ui
 
