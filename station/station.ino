@@ -1,7 +1,10 @@
 /// station.ino
 /// Arduino control program for iota-station
 /// 
-
+/// Todo:
+/// - Integrate RC Switch
+/// - Integrate status LED
+/// - Integrate sensors
 #include <SPI.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -29,6 +32,7 @@ void setup()
   setupWiFi();
   setupIotaBroker(); 
   initialiseIotaDevices();
+  updateIotaStatus();
 }
 
 
@@ -139,6 +143,8 @@ void initialiseIotaDevices()
     // todo: send it to the device
   }
   
+  // todo: read all sensors
+  
   // note start time
   startTime = millis();
 }
@@ -159,24 +165,23 @@ void updateIotaStatus()
 void iotaCallback(char* topic, byte* payload, unsigned int length)
 //=============================================================================
 {
-    if( !strcmp(topic, IOTA_TOPIC_SWITCH_CNTRL) )
+  // handle switch control
+  if( !strcmp(topic, IOTA_TOPIC_SWITCH_CNTRL) )
+  {
+    // cast to type
+    switch_payload cmd = *(switch_payload*)payload;
+      
+    if( cmd.channel < IOTA_NUM_SWITCHES )
     {
-      // cast to type
-      switch_payload cmd = *(switch_payload*)payload;
+      switchStatus[cmd.channel].status = cmd.status;
       
-      if( cmd.channel < IOTA_NUM_SWITCHES )
-      {
-        switchStatus[cmd.channel].status = cmd.status;
-        
-        // todo: send command to device
-      }
+      // todo: send command to device
+    }
       
-      // respond to remote
-      switch_payload* pReply = &(switchStatus[cmd.channel]);
-      iotaClient.publish(IOTA_TOPIC_SWITCH_STATUS, (uint8_t*)pReply, sizeof(switch_payload));
-    }//switch status reply
-
-  // copy the payload
+    // respond to remote
+    switch_payload* pReply = &(switchStatus[cmd.channel]);
+    iotaClient.publish(IOTA_TOPIC_SWITCH_STATUS, (uint8_t*)pReply, sizeof(switch_payload));
+  }//switch status reply
   
 }
 
