@@ -1,1 +1,6 @@
-unzip the libraries in this folder and copy them to your <sketchbook>/libraries folder. See manual installation details in http://arduino.cc/en/Guide/Libraries
+Get the latest version of the following Arduino libraries:
+
+RCSwitch: https://code.google.com/p/rc-switch/
+PubSubClient: https://github.com/knolleary/pubsubclient/tags
+
+Import the libraries into your <sketches>/libraries folder to make it available to the station control code. (See manual installation details in http://arduino.cc/en/Guide/Libraries)

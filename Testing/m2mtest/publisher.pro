@@ -11,7 +11,7 @@ SOURCES += publisher_main.cpp \
 LIBS += -L$$PWD/../../ThirdParty/mosquitto/lib/linux64/ -lmosquitto -lpthread -lrt
 
 INCLUDEPATH += ../../ThirdParty/mosquitto/include/mosquitto/ \
-                ../../
+                ../../station/
 
 HEADERS += \
     ../../ThirdParty/mosquitto/include/mosquitto/mosquittopp.h \
