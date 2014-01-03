@@ -2,33 +2,17 @@
 /// Arduino control program for iota-station
 /// 
 
+#include <Wire.h>
 #include <SPI.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <RCSwitch.h>
 #include <SD.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_U.h>
 #include "connection_info.h"
 #include "iota_messages.h"
-
-#define DEBUG 1
-
-#define DEBUGPRINT(x) \
-if(DEBUG) \
-{ \
-  Serial.print((x)); \
-}
-
-#define DEBUGPRINTHEX(x) \
-if(DEBUG) \
-{ \
-  Serial.print((x),HEX); \
-}
-
-#define DEBUGPRINTLN(x) \
-if(DEBUG) \
-{ \
-  Serial.println((x)); \
-}
+#include "helper_defs.h"
 
 #define IDLE_UPDATE_TIME_MS 10000
 
@@ -168,6 +152,7 @@ void initialiseIotaDevices()
   // ------------------- Switches -----------------------------
   // Switch tx is connected to this pin
   switchController.enableTransmit(IOTA_SWITCH_TX_PIN);
+  switchController.setPulseLength(IOTA_SWITCH_PULSE_LEN);
   
   // reset all switches 
   DEBUGPRINT(__FUNCTION__);
@@ -256,22 +241,22 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
       DEBUGPRINT(" ");
       if( cmd.state )
       {
-        DEBUGPRINTLN("alive");
+        DEBUGPRINT("alive");
         numActiveClients++;
         updateIotaStatus();
       }
       else
       {
-        DEBUGPRINTLN("dead");
+        DEBUGPRINT("dead");
         numActiveClients--;
         
         // bug in the client code means we can get 2 'dead' messages
         // from a clientexit
         if( numActiveClients < 0) numActiveClients = 0;
       }
-      DEBUGPRINT(__FUNCTION__);
-      DEBUGPRINT(": Num. active clients: ");
-      DEBUGPRINTLN(numActiveClients);
+      DEBUGPRINT(" [active clients = ");
+      DEBUGPRINT(numActiveClients);
+      DEBUGPRINTLN("]");
       if( cmd.state == 0 ) // remove redundant messages from broker
       {
         iotaClient.publish(topic, NULL, 0, true);
