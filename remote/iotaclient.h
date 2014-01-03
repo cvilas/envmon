@@ -14,6 +14,7 @@ public:
     IotaClient();
     virtual ~IotaClient();
     bool connect();
+    void notifyAndDisconnect();
     bool isConnected() const { return _isConnected; }
     inline bool isStationActive() const;
 
@@ -39,6 +40,7 @@ private:
 private:
     bool _isConnected;
     bool _messageRecvd;
+    bool _messagePublished;
     QTime _timekeeper;
 }; // MqttClient
 

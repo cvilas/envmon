@@ -1,15 +1,24 @@
 #include "iotaclient.h"
 #include "iota_messages.h"
 #include "connection_info.h"
+#include <QDateTime>
+#include <QThread>
 #include <QDebug>
+
+static client_state CLIENT_LAST_WILL{0,0};
 
 //=============================================================================
 IotaClient::IotaClient()
 //=============================================================================
     : mosquittopp(NULL),
       _isConnected(false),
-      _messageRecvd(false)
+      _messageRecvd(false),
+      _messagePublished(false)
 {
+    // random client session id
+    qsrand( QDateTime::currentDateTime().toTime_t());
+    CLIENT_LAST_WILL.sid = qrand();
+
     mosqpp::lib_init();
     _timekeeper.start();
 }
@@ -18,9 +27,51 @@ IotaClient::IotaClient()
 IotaClient::~IotaClient()
 //-----------------------------------------------------------------------------
 {
-    mosqpp::mosquittopp::disconnect();
+    notifyAndDisconnect();
     mosqpp::mosquittopp::loop_stop(true);
     mosqpp::lib_cleanup();
+}
+
+//-----------------------------------------------------------------------------
+void IotaClient::notifyAndDisconnect()
+//-----------------------------------------------------------------------------
+{
+    // let station know I am quitting
+    client_state st;
+    st.sid = CLIENT_LAST_WILL.sid;
+    st.state = 0;
+    QString topic = QString(IOTA_TOPIC_CLIENT_STATE) + QString("/")
+            + QString::number(CLIENT_LAST_WILL.sid,16);
+    _messagePublished = false;
+    mosqpp::mosquittopp::publish(NULL,
+                                 topic.toLocal8Bit().data(),
+                                 sizeof(st),
+                                 &st,
+                                 0,//qos
+                                 true); //retain
+
+    // remove the retained messages to avoid clogging the broker
+    /// \bug
+    /// - This doesn't seem to work, although doing the same thing from
+    ///   arduino pubsubclient does
+    _messagePublished = false;
+    mosqpp::mosquittopp::publish(NULL,
+                                 topic.toLocal8Bit().data(),
+                                 0,
+                                 NULL,
+                                 0,//qos
+                                 true); //retain
+
+    /// wait for publish to happen before disconnecting
+    unsigned int nTries = 10;
+    while( !_messagePublished && (nTries < 100) )
+    {
+        ++nTries;
+        QThread::currentThread()->msleep(10);
+    }
+
+    mosqpp::mosquittopp::disconnect();
+
 }
 
 //-----------------------------------------------------------------------------
@@ -29,7 +80,7 @@ bool IotaClient::connect()
 {
     if( isConnected() )
     {
-        mosqpp::mosquittopp::disconnect();
+        notifyAndDisconnect();
         mosqpp::mosquittopp::loop_stop(true);
         _isConnected = false;
     }
@@ -42,6 +93,25 @@ bool IotaClient::connect()
         return false;
     }
 
+
+    // set last will and testament - lets broker know when we have unexpectedly quit
+
+    mosqpp::mosquittopp::will_clear();
+
+    QString topic = QString(IOTA_TOPIC_CLIENT_STATE) + QString("/")
+            + QString::number(CLIENT_LAST_WILL.sid,16);
+    rc = mosqpp::mosquittopp::will_set(topic.toLocal8Bit().data(),
+                                       sizeof(CLIENT_LAST_WILL),
+                                       &CLIENT_LAST_WILL,
+                                       0,//qos
+                                       true); //retain
+    if( MOSQ_ERR_SUCCESS != rc )
+    {
+        qDebug() << "[IotaClient::connect] will_set() failed with code " << rc;
+        return false;
+    }
+
+
     // connect to broker
     rc = mosqpp::mosquittopp::connect(IOTA_BROKER_URL, IOTA_BROKER_PORT, /*keepalive*/60);
     if( MOSQ_ERR_SUCCESS != rc )
@@ -50,7 +120,7 @@ bool IotaClient::connect()
         return false;
     }
 
-    // start loop
+    // start loop in a separate thread
     rc = mosqpp::mosquittopp::loop_start();
     if( MOSQ_ERR_SUCCESS != rc )
     {
@@ -94,10 +164,26 @@ void IotaClient::on_connect(int rc)
 //-----------------------------------------------------------------------------
 {
     _isConnected = (rc == MOSQ_ERR_SUCCESS);
+
+    // subscribe to messages
     if( _isConnected )
     {
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_SWITCH_STATUS,/*qos*/0);
     }
+
+    // let station know of my existence
+    client_state st;
+    st.sid = CLIENT_LAST_WILL.sid;
+    st.state = 1;
+    QString topic = QString(IOTA_TOPIC_CLIENT_STATE) + QString("/")
+            + QString::number(CLIENT_LAST_WILL.sid,16);
+    rc = mosqpp::mosquittopp::publish(NULL,
+                                      topic.toLocal8Bit().data(),
+                                      sizeof(st),
+                                      &st,
+                                      0,//qos
+                                      true);//retain
+
     emit connectionStatusChanged(_isConnected);
 }
 
@@ -116,10 +202,14 @@ void IotaClient::on_message(const struct mosquitto_message *message)
     _messageRecvd = true;
     _timekeeper.restart();
 
-    qDebug() << "[IotaClient::on_message] " << message->topic;
-
     if( !strcmp(message->topic, IOTA_TOPIC_SWITCH_STATUS) )
     {
+        if( message->payloadlen != sizeof(switch_payload) )
+        {
+            qDebug() << "[IotaClient::on_message] Topic " << message->topic
+                     << ":\nPayload size incorrect. Ignoring";
+            return;
+        }
         switch_payload value = *(switch_payload*)message->payload;
         emit switchStatusChanged(value.channel, value.status);
     }//switch status reply
@@ -129,9 +219,11 @@ void IotaClient::on_message(const struct mosquitto_message *message)
 void IotaClient::on_subscribe(int mid, int qos_count, const int *granted_qos)
 //-----------------------------------------------------------------------------
 {
+    /*
     qDebug() << "[IotaClient::on_subscribe] mid " << mid
              << " qos_count " << qos_count
              << " granted qos " << *granted_qos;
+             */
 }
 
 //-----------------------------------------------------------------------------
@@ -142,7 +234,10 @@ void IotaClient::on_unsubscribe(int mid)
 //-----------------------------------------------------------------------------
 void IotaClient::on_publish(int mid)
 //-----------------------------------------------------------------------------
-{}
+{
+    _messagePublished = true;
+    //qDebug() << "[IotaClient::on_publish] " << mid;
+}
 
 
 //-----------------------------------------------------------------------------
