@@ -15,7 +15,7 @@ public:
     IotaClient();
     virtual ~IotaClient();
     bool connect();
-    void notifyAndDisconnect();
+    void close(bool notify);
     bool isConnected() const { return _isConnected; }
     inline bool isStationActive() const;
 

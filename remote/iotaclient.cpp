@@ -27,28 +27,36 @@ IotaClient::IotaClient()
 IotaClient::~IotaClient()
 //-----------------------------------------------------------------------------
 {
-    notifyAndDisconnect();
+#ifdef ANDROID
+    close(true);
+#else
+    close(false);
+#endif
     mosqpp::mosquittopp::loop_stop(true);
     mosqpp::lib_cleanup();
 }
 
 //-----------------------------------------------------------------------------
-void IotaClient::notifyAndDisconnect()
+void IotaClient::close(bool notify)
 //-----------------------------------------------------------------------------
 {
-    // let station know I am quitting
     client_state st;
     st.sid = CLIENT_LAST_WILL.sid;
     st.state = 0;
     QString topic = QString(IOTA_TOPIC_CLIENT_STATE) + QString("/")
-            + QString::number(CLIENT_LAST_WILL.sid,16);
-    _messagePublished = false;
-    mosqpp::mosquittopp::publish(NULL,
-                                 topic.toLocal8Bit().data(),
-                                 sizeof(st),
-                                 &st,
-                                 0,//qos
-                                 true); //retain
+        + QString::number(CLIENT_LAST_WILL.sid,16);
+
+    // let station know I am quitting
+    if( notify )
+    {
+        _messagePublished = false;
+        mosqpp::mosquittopp::publish(NULL,
+                                     topic.toLocal8Bit().data(),
+                                     sizeof(st),
+                                     &st,
+                                     0,//qos
+                                     true); //retain
+    }
 
     // remove the retained messages to avoid clogging the broker
     /// \bug
@@ -80,7 +88,7 @@ bool IotaClient::connect()
 {
     if( isConnected() )
     {
-        notifyAndDisconnect();
+        close(true);
         mosqpp::mosquittopp::loop_stop(true);
         _isConnected = false;
     }
