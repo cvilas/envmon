@@ -26,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(&_timer, SIGNAL(timeout()), &_stationStatus, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimer()));
     QObject::connect(&_iotaClient, SIGNAL(switchStatusChanged(int,bool)), this, SLOT(onSwitchStatusChanged(int,bool)));
+    QObject::connect(&_iotaClient, SIGNAL(weatherStatusChanged(float,int,float,int)), this, SLOT(onWeatherStatusChanged(float, int, float, int)));
     QObject::connect(&_iotaClient, SIGNAL(connectionStatusChanged(bool)), this, SLOT(onConnectionStatusChanged(bool)));
 
     on_actionReconnect_triggered();
@@ -152,4 +153,41 @@ void MainWindow::onSwitchStatusChanged(int channel, bool on)
     default:
         break;
     };//switch channel
+}
+
+//-----------------------------------------------------------------------------
+void MainWindow::onWeatherStatusChanged(float celsius, int pascals, float altitudeMeters, int humidityPercent)
+//-----------------------------------------------------------------------------
+{
+    _pUi->tempValue->setText( QString::number(celsius) );
+    _pUi->pressValue->setText( QString::number(pascals) );
+    _pUi->altValue->setText( QString::number(altitudeMeters) );
+    _pUi->humidValue->setText( QString::number(humidityPercent) );
+}
+
+//-----------------------------------------------------------------------------
+void MainWindow::on_redLampValue_valueChanged(int value)
+//-----------------------------------------------------------------------------
+{
+    _iotaClient.setLamp(_pUi->redLampValue->value(),
+                        _pUi->greenLampValue->value(),
+                        _pUi->blueLampValue->value());
+}
+
+//-----------------------------------------------------------------------------
+void MainWindow::on_greenLampValue_valueChanged(int value)
+//-----------------------------------------------------------------------------
+{
+    _iotaClient.setLamp(_pUi->redLampValue->value(),
+                        _pUi->greenLampValue->value(),
+                        _pUi->blueLampValue->value());
+}
+
+//-----------------------------------------------------------------------------
+void MainWindow::on_blueLampValue_valueChanged(int value)
+//-----------------------------------------------------------------------------
+{
+    _iotaClient.setLamp(_pUi->redLampValue->value(),
+                        _pUi->greenLampValue->value(),
+                        _pUi->blueLampValue->value());
 }

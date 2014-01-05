@@ -13,12 +13,17 @@
 #include "iota_messages.h"
 #include "helper_defs.h"
 
-#define IDLE_UPDATE_TIME_MS 5000
+#define IDLE_UPDATE_TIME_MS 10000
 
 void setupWiFi();
 void setupIotaBroker();
 void initialiseIotaDevices();
 void transmitStatus();
+void transmitSwitchStatus();
+void transmitWeather();
+void setLampColor(uint8_t r, uint8_t g, uint8_t b);
+void setSwitch(uint8_t ch, uint8_t st);
+void setSwitchesFromStatus();
 void iotaCallback(char* topic, byte* payload, unsigned int length);
 
 // Devices
@@ -29,6 +34,7 @@ PubSubClient  iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifiCl
 
 unsigned long startTime = 0;
 int numActiveClients = 0;
+
 switch_payload switchStatus[IOTA_NUM_SWITCHES];
 
 //=============================================================================
@@ -36,7 +42,6 @@ void setup()
 //=============================================================================
 {
   Serial.begin(9600);
-  bmp.begin();
   DEBUGPRINTLN("Starting up");
   setupWiFi();
   setupIotaBroker(); 
@@ -44,25 +49,11 @@ void setup()
   transmitStatus();
 }
 
-
 //=============================================================================
 void loop()
 //=============================================================================
 {
   iotaClient.loop();
-    Serial.print("Temperature = ");
-    Serial.print(bmp.readTemperature());
-    Serial.println(" *C");
-    
-    Serial.print("Pressure = ");
-    Serial.print(bmp.readPressure());
-    Serial.println(" Pa");
-    
-    // Calculate altitude assuming 'standard' barometric
-    // pressure of 1013.25 millibar = 101325 Pascal
-    Serial.print("Altitude = ");
-    Serial.print(bmp.readAltitude());
-    Serial.println(" meters");
 
   // update all 
   // note: using unsigned int for subtraction means this works even when
@@ -72,6 +63,7 @@ void loop()
   {
     startTime = now;
     transmitStatus();
+    setSwitchesFromStatus();
   }
 }
 
@@ -150,6 +142,9 @@ void setupIotaBroker()
   
   DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_SWITCH_CNTRL);
   iotaClient.subscribe(IOTA_TOPIC_SWITCH_CNTRL);
+
+  DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_LAMP_CNTRL);
+  iotaClient.subscribe(IOTA_TOPIC_LAMP_CNTRL);
 }
 
 //=============================================================================
@@ -160,6 +155,7 @@ void initialiseIotaDevices()
   // Switch tx is connected to this pin
   switchController.enableTransmit(IOTA_SWITCH_TX_PIN);
   switchController.setPulseLength(IOTA_SWITCH_PULSE_LEN);
+  //switchController.setRepeatTransmit(2);
   
   // reset all switches 
   DEBUGPRINT(__FUNCTION__);
@@ -171,8 +167,14 @@ void initialiseIotaDevices()
     switchStatus[i].status = 0;
   }  
   
+  // ------------------- RGB LED -----------------------------
+  pinMode(RGB_LED_R_PIN, OUTPUT);
+  pinMode(RGB_LED_G_PIN, OUTPUT);
+  pinMode(RGB_LED_B_PIN, OUTPUT);
+  setLampColor(0,0,0);
+  
   // ------------------ Temp./Press. sensor ---------------------
-  // todo: read sensor
+  bmp.begin();
 
   // ------------------ PIR sensor ---------------------
   // todo: read sensor
@@ -191,35 +193,77 @@ void initialiseIotaDevices()
 void transmitStatus()
 //=============================================================================
 {
+  if( numActiveClients == 0)
+  {
+    return;
+  }
+  
+  transmitSwitchStatus();
+  transmitWeather();
+}
+
+//=============================================================================
+void transmitWeather()
+//=============================================================================
+{
+  weather_payload w;
+  w.temperature10C = (int32_t)(10 * bmp.readTemperature());
+  w.pressurePa = bmp.readPressure();
+  w.pressureAlt10m = (int32_t)(10 * bmp.readAltitude());
+  w.humidityPercent = 0; //TODO
+  
+  iotaClient.publish(IOTA_TOPIC_WEATHER, (uint8_t*)&w, sizeof(w));
+}
+
+//=============================================================================
+void transmitSwitchStatus()
+//=============================================================================
+{
   // ------------------- Switches -----------------------------
   for(int i = 0; i < IOTA_NUM_SWITCHES; ++i)
   {
     switch_payload* pReply = &(switchStatus[i]);
-    if( numActiveClients )
-    {
-      iotaClient.publish(IOTA_TOPIC_SWITCH_STATUS, (uint8_t*)pReply, sizeof(switch_payload));
-    }
+    iotaClient.publish(IOTA_TOPIC_SWITCH_STATUS, (uint8_t*)pReply, sizeof(switch_payload));
   }
-  
-  // ------------------ Temp./Press. sensor ---------------------
-  // todo: 
-  // - read sensor, publish
-  // - once an hour log to SD card
+}
 
-  // ------------------ PIR sensor ---------------------
-  // todo: 
-  // - move to loop
-  // - on motion detection, publish with time
-  // - log to SD card
+//=============================================================================
+void setLampColor(uint8_t r, uint8_t g, uint8_t b)
+//=============================================================================
+{
+  analogWrite(RGB_LED_R_PIN, 255 - r);
+  analogWrite(RGB_LED_G_PIN, 255 - g);
+  analogWrite(RGB_LED_B_PIN, 255 - b);
+}
 
-  // ------------------ NTP ---------------------
-  // todo: 
-  // - every 5 hours, read and update RTC
-  // - publish the event, with 'before' and 'after' time from RTC
-  // - log the event, with 'before' and 'after' time
+//=============================================================================
+void setSwitch(uint8_t ch, uint8_t st)
+//=============================================================================
+{
+  if( ch < IOTA_NUM_SWITCHES )
+  {
+    if( st )
+    {
+      switchController.switchOn(IOTA_SWITCH_SYSTEM_CODE,IOTA_SWITCH_UNIT_CODE[ch]);
+    }
+    else
+    {
+      switchController.switchOff(IOTA_SWITCH_SYSTEM_CODE,IOTA_SWITCH_UNIT_CODE[ch]);
+    } 
+  }
+}
 
-  // ------------------ SD card logging ---------------------
-  // todo: read sensor
+//=============================================================================
+void setSwitchesFromStatus()
+//=============================================================================
+{
+  // we do this every often because the switches are open loop, and we don't really
+  // know if they got activated when they were commanded.
+  for(int i = 0; i < IOTA_NUM_SWITCHES; ++i)
+  {
+    setSwitch(switchStatus[i].channel, switchStatus[i].status);
+  }
+
 }
 
 //=============================================================================
@@ -233,12 +277,10 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
   {   
     if( length )
     {
-      client_state cmd = *(client_state*)payload;
-      DEBUGPRINT(__FUNCTION__);
-      DEBUGPRINT(": Client ");
-      DEBUGPRINTHEX(cmd.sid);
-      DEBUGPRINT(" ");
-      if( cmd.state )
+      client_state* cmd = (client_state*)payload;
+      DEBUGPRINT(__FUNCTION__); DEBUGPRINT(": Client ");
+      DEBUGPRINTHEX(cmd->sid); DEBUGPRINT(" ");
+      if( cmd->state )
       {
         DEBUGPRINT("alive");
         numActiveClients++;
@@ -253,10 +295,8 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
         // from a clientexit
         if( numActiveClients < 0) numActiveClients = 0;
       }
-      DEBUGPRINT(" [active clients = ");
-      DEBUGPRINT(numActiveClients);
-      DEBUGPRINTLN("]");
-      if( cmd.state == 0 ) // remove redundant messages from broker
+      DEBUGPRINT(" [active clients = "); DEBUGPRINT(numActiveClients); DEBUGPRINTLN("]");
+      if( cmd->state == 0 ) // remove redundant messages from broker
       {
         iotaClient.publish(topic, NULL, 0, true);
       }
@@ -270,54 +310,56 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
   {
     if( length != sizeof(switch_payload) )
     {
-      DEBUGPRINT(__FUNCTION__);
-      DEBUGPRINTLN(": ERROR: Payload size incorrect. Ignoring.");
+      DEBUGPRINT(__FUNCTION__); DEBUGPRINTLN(": ERROR: Payload size incorrect. Ignoring.");
       return;
     }
     
     // cast to type
-    switch_payload cmd = *(switch_payload*)payload;
-    DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINT(": Set Switch ");
-    DEBUGPRINT(cmd.channel);
-    DEBUGPRINT(" -> ");
-    DEBUGPRINTLN(cmd.status?("ON"):("OFF"));
+    switch_payload* cmd = (switch_payload*)payload;
+    DEBUGPRINT(__FUNCTION__); DEBUGPRINT(": Set Switch ");
+    DEBUGPRINT(cmd->channel); DEBUGPRINT(" -> "); DEBUGPRINTLN(cmd->status?("ON"):("OFF"));
       
-    if( cmd.channel < IOTA_NUM_SWITCHES )
-    {     
-      // send command to device
-      if( cmd.status )
-      {
-        switchController.switchOn(IOTA_SWITCH_SYSTEM_CODE,IOTA_SWITCH_UNIT_CODE[cmd.channel]);
-      }
-      else
-      {
-        switchController.switchOff(IOTA_SWITCH_SYSTEM_CODE,IOTA_SWITCH_UNIT_CODE[cmd.channel]);
-      }
-      
+    if( cmd->channel < IOTA_NUM_SWITCHES )
+    {
+      // set it
+      setSwitch(cmd->channel, cmd->status);
+           
       // copy status
-      switchStatus[cmd.channel].status = cmd.status; 
+      switchStatus[cmd->channel].status = cmd->status; 
 
       // respond to remote
-      switch_payload* pReply = &(switchStatus[cmd.channel]);
+      switch_payload* pReply = &(switchStatus[cmd->channel]);
       iotaClient.publish(IOTA_TOPIC_SWITCH_STATUS, (uint8_t*)pReply, sizeof(switch_payload));
     }
     
     return;
   } //switch control
-  
-  // ------------------ Temp./Press. sensor ---------------------
-  // - read and publish
-  
-  // ------------------ battery sensor ---------------------
-  // - read and publish
+   
+  // ------------------- lamps -----------------------------
+
+  if( !strcmp(topic, IOTA_TOPIC_LAMP_CNTRL) )
+  {
+    if( length != sizeof(lamp_payload) )
+    {
+      DEBUGPRINT(__FUNCTION__); DEBUGPRINTLN(": ERROR: Payload size incorrect. Ignoring.");
+      return;
+    }
+    
+    lamp_payload* pCmd = (lamp_payload*)payload;
+    setLampColor(pCmd->r, pCmd->g, pCmd->b);
+    
+    // respond
+    lamp_payload lamp;
+    lamp.r = pCmd->r;
+    lamp.g = pCmd->g;
+    lamp.b = pCmd->b;
+    iotaClient.publish(IOTA_TOPIC_LAMP_STATUS, (uint8_t*)&lamp, sizeof(lamp));
+    return;
+  }
   
   // ------------------ PIR sensor ---------------------
   // - send last detected motion time
-  
-  // ------------------ device time ---------------------
-  // - send current RTC time
-  
+   
   // ------------------ NTP sync ---------------------
   // - read NTC
   // - sync
@@ -326,5 +368,6 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
   // ------------------ SD card logging ---------------------
 
 }
+
 
 

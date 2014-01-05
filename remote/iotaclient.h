@@ -3,6 +3,7 @@
 
 #include <mosquittopp.h>
 #include <QTime>
+#include <inttypes.h>
 
 //=============================================================================
 /// \brief Messaging client.
@@ -21,9 +22,11 @@ public:
     int msSinceLastMessage() const;
 
     bool setSwitchOn(int channel, bool on);
+    bool setLamp(uint8_t r, uint8_t g, uint8_t b);
 
 signals:
     void switchStatusChanged(int channel, bool on);
+    void weatherStatusChanged(float celsius, int pascals, float altitudeMeters, int humidityPercent);
     void connectionStatusChanged(bool connected);
     void stationStatusChanged(bool active);
 

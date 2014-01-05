@@ -24,6 +24,7 @@ public:
 private slots:
     void on_actionReconnect_triggered();
     void onSwitchStatusChanged(int channel, bool on);
+    void onWeatherStatusChanged(float celsius, int pascals, float altitudeMeters, int humidityPercent);
     void onConnectionStatusChanged(bool connected);
     void onTimer();
 
@@ -35,6 +36,9 @@ private slots:
     void on_onBtn2_clicked();
     void on_offBtn3_clicked();
     void on_onBtn3_clicked();
+    void on_redLampValue_valueChanged(int value);
+    void on_greenLampValue_valueChanged(int value);
+    void on_blueLampValue_valueChanged(int value);
 
 private:
     Ui::MainWindow* _pUi;

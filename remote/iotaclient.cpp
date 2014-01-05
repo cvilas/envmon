@@ -160,6 +160,27 @@ bool IotaClient::setSwitchOn(int channel, bool on)
 }
 
 //-----------------------------------------------------------------------------
+bool IotaClient::setLamp(uint8_t r, uint8_t g, uint8_t b)
+//-----------------------------------------------------------------------------
+{
+    if( !isConnected() )
+    {
+        return false;
+    }
+
+    lamp_payload pl;
+    pl.b = b;
+    pl.g = g;
+    pl.r = r;
+    return ( MOSQ_ERR_SUCCESS == mosqpp::mosquittopp::publish(NULL,
+                                                              IOTA_TOPIC_LAMP_CNTRL,
+                                                              sizeof(pl),
+                                                              &pl,
+                                                              /*qos*/0,
+                                                              /*retain*/false) );
+}
+
+//-----------------------------------------------------------------------------
 void IotaClient::on_connect(int rc)
 //-----------------------------------------------------------------------------
 {
@@ -169,6 +190,8 @@ void IotaClient::on_connect(int rc)
     if( _isConnected )
     {
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_SWITCH_STATUS,/*qos*/0);
+        rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_WEATHER,/*qos*/0);
+        rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_LAMP_STATUS,/*qos*/0);
     }
 
     // let station know of my existence
@@ -202,6 +225,7 @@ void IotaClient::on_message(const struct mosquitto_message *message)
     _messageRecvd = true;
     _timekeeper.restart();
 
+    // switches
     if( !strcmp(message->topic, IOTA_TOPIC_SWITCH_STATUS) )
     {
         if( message->payloadlen != sizeof(switch_payload) )
@@ -210,9 +234,21 @@ void IotaClient::on_message(const struct mosquitto_message *message)
                      << ":\nPayload size incorrect. Ignoring";
             return;
         }
-        switch_payload value = *(switch_payload*)message->payload;
-        emit switchStatusChanged(value.channel, value.status);
+        switch_payload* pValue = (switch_payload*)message->payload;
+        emit switchStatusChanged(pValue->channel, pValue->status);
     }//switch status reply
+
+    if( !strcmp(message->topic, IOTA_TOPIC_WEATHER) )
+    {
+        if( message->payloadlen != sizeof(weather_payload) )
+        {
+            qDebug() << "[IotaClient::on_message] Topic " << message->topic
+                     << ":\nPayload size incorrect. Ignoring";
+            return;
+        }
+        weather_payload* pValue = (weather_payload*)message->payload;
+        emit weatherStatusChanged(pValue->temperature10C/10.f, pValue->pressurePa, pValue->pressureAlt10m/10.f, pValue->humidityPercent);
+    }//weather
 }
 
 //-----------------------------------------------------------------------------
