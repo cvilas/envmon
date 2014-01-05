@@ -1,7 +1,7 @@
 #ifndef HELPER_DEFS_H
 #define HELPER_DEFS_H
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define DEBUGPRINT(x) \
 if(DEBUG) \

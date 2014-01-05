@@ -7,24 +7,24 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <RCSwitch.h>
-#include <SD.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP085_U.h>
+//#include <SD.h>
+#include <Adafruit_BMP085.h>
 #include "connection_info.h"
 #include "iota_messages.h"
 #include "helper_defs.h"
 
-#define IDLE_UPDATE_TIME_MS 10000
+#define IDLE_UPDATE_TIME_MS 5000
 
 void setupWiFi();
 void setupIotaBroker();
 void initialiseIotaDevices();
-void updateIotaStatus();
+void transmitStatus();
 void iotaCallback(char* topic, byte* payload, unsigned int length);
 
 // Devices
 WiFiClient    wifiClient;
 RCSwitch      switchController;
+Adafruit_BMP085 bmp;
 PubSubClient  iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifiClient);
 
 unsigned long startTime = 0;
@@ -36,11 +36,12 @@ void setup()
 //=============================================================================
 {
   Serial.begin(9600);
+  bmp.begin();
   DEBUGPRINTLN("Starting up");
   setupWiFi();
   setupIotaBroker(); 
   initialiseIotaDevices();
-  updateIotaStatus();
+  transmitStatus();
 }
 
 
@@ -49,7 +50,20 @@ void loop()
 //=============================================================================
 {
   iotaClient.loop();
-  
+    Serial.print("Temperature = ");
+    Serial.print(bmp.readTemperature());
+    Serial.println(" *C");
+    
+    Serial.print("Pressure = ");
+    Serial.print(bmp.readPressure());
+    Serial.println(" Pa");
+    
+    // Calculate altitude assuming 'standard' barometric
+    // pressure of 1013.25 millibar = 101325 Pascal
+    Serial.print("Altitude = ");
+    Serial.print(bmp.readAltitude());
+    Serial.println(" meters");
+
   // update all 
   // note: using unsigned int for subtraction means this works even when
   // millis() rolls over after 50 days.
@@ -57,7 +71,7 @@ void loop()
   if( now - startTime > IDLE_UPDATE_TIME_MS )
   {
     startTime = now;
-    updateIotaStatus();
+    transmitStatus();
   }
 }
 
@@ -129,17 +143,10 @@ void setupIotaBroker()
   // setup subscriptions
   DEBUGPRINT(__FUNCTION__);
   DEBUGPRINTLN(": Subscriptions:");
-  
+ 
   //special message to determine how many clients are connected
-  String topicStr = IOTA_TOPIC_CLIENT_STATE;
-  topicStr += "/+1";
-  int len = topicStr.length()*sizeof(char);
-  char* topic = (char*)malloc(len+1);
-  topic[len] = '\0';
-  topicStr.toCharArray(topic,len); 
-  DEBUGPRINT("- "); DEBUGPRINTLN(topic);
-  iotaClient.subscribe(topic);
-  free(topic);
+  DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_CLIENT_STATE_SUBSCRIPTION);
+  iotaClient.subscribe(IOTA_TOPIC_CLIENT_STATE_SUBSCRIPTION);
   
   DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_SWITCH_CNTRL);
   iotaClient.subscribe(IOTA_TOPIC_SWITCH_CNTRL);
@@ -167,9 +174,6 @@ void initialiseIotaDevices()
   // ------------------ Temp./Press. sensor ---------------------
   // todo: read sensor
 
-  // ------------------ battery sensor ---------------------
-  // todo: read sensor
-
   // ------------------ PIR sensor ---------------------
   // todo: read sensor
 
@@ -184,7 +188,7 @@ void initialiseIotaDevices()
 }
 
 //=============================================================================
-void updateIotaStatus()
+void transmitStatus()
 //=============================================================================
 {
   // ------------------- Switches -----------------------------
@@ -201,11 +205,6 @@ void updateIotaStatus()
   // todo: 
   // - read sensor, publish
   // - once an hour log to SD card
-
-  // ------------------ battery sensor ---------------------
-  // todo: 
-  // - read sensor, publish
-  // - once every 10 minutes, log to SD card
 
   // ------------------ PIR sensor ---------------------
   // todo: 
@@ -243,7 +242,7 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
       {
         DEBUGPRINT("alive");
         numActiveClients++;
-        updateIotaStatus();
+        transmitStatus();
       }
       else
       {
