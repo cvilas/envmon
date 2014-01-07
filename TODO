@@ -1,21 +1,27 @@
 Remote
 ------
-1. On disconnection, set all indicators to INACTIVE
-2. Mainwindow central widget must be whole screen, not just switches
-3. Switches
-	- Auto on/off configuration based on time
-	- Configure to trip a switch on PIR (see similar function for lamp)
-	- Make UI beautiful
-4. Weather
-	- Temperature icon hue change (green: good, red: warm, blue: cold)
-	- Make UI beautiful 
-5. PIR
+1. Switches custom configuration
+	- Auto on/off based on time and day (See android alarm function)
+	- Trip on motion detection
+		- configurable active timespan ie. work as motion detector during 
+		these times of the day (eg: to turn on night lamp)
+		- configurable ON time
+2. Weather
+	- Temperature icon with hue based on comfort level (green: good, red: warm, blue: cold)
+3. PIR
 	- Display last n detections
-6. Lamp
-	- Configure to change hue based on
-		- temperature
-		- fixed user set color
-		- on motion detection with configurable color, duration and clock 
-		time(ie, work as motion detector between these times of the day, eg: night lamp)
-		- on interaction from remote
+4. Lamp configuration
+	- Change hue on temperature
+	- user set fixed color
+	- on interaction with remote
+	- motion detection 
+		- specify color
+		- specify on time
+		- specify times of day when it is active as motion detector (eg: night lamp function)
+5. Additional functions
+	- Number of active clients interacting with the device
+6. Gui
+	- On disconnection, set all indicators to INACTIVE
+	- Mainwindow central widget must be whole screen, not just switches
+	- Make UI beautiful - redesign using QtQuick/QML
 
