@@ -21,6 +21,9 @@ Remote
 5. Additional functions
 	- Number of active clients interacting with the device
 	- Show last update time on Gui
+	- Data logging to SD card 
+	- Offline graphing tools (process data files from SD)
+	- Online graphing (view realtime data on gui - define data duration)
 6. Fault recovery
 	- Station: 
 		- Detect disconnect with server and reconnect automatically
