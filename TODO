@@ -20,7 +20,12 @@ Remote
 		- specify times of day when it is active as motion detector (eg: night lamp function)
 5. Additional functions
 	- Number of active clients interacting with the device
-6. Gui
+	- Show last update time on Gui
+6. Fault recovery
+	- Station: 
+		- Detect disconnect with server and reconnect automatically
+		- Confirm numActiveClients is correct when android app is minimised, closed, switched to another app
+7. Gui
 	- On disconnection, set all indicators to INACTIVE
 	- Mainwindow central widget must be whole screen, not just switches
 	- Make UI beautiful - redesign using QtQuick/QML
