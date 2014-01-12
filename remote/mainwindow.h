@@ -34,8 +34,6 @@ private slots:
     void on_onBtn1_clicked();
     void on_offBtn2_clicked();
     void on_onBtn2_clicked();
-    void on_offBtn3_clicked();
-    void on_onBtn3_clicked();
     void on_redLampValue_valueChanged(int value);
     void on_greenLampValue_valueChanged(int value);
     void on_blueLampValue_valueChanged(int value);

@@ -26,10 +26,6 @@ TODOLIST
 	- Offline graphing tools (process data files from SD)
 	- Online graphing (view realtime data on gui - define data duration)
 	- Integrate an LCD module
-6. Fault recovery
-	- Station: 
-		- Detect disconnect with server and reconnect automatically
-		- Confirm numActiveClients is correct when android app is minimised, closed, switched to another app
 7. Gui
 	- On disconnection, set all indicators to INACTIVE
 	- Mainwindow central widget must be whole screen, not just switches

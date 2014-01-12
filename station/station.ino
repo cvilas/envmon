@@ -53,6 +53,26 @@ void setup()
 void loop()
 //=============================================================================
 {
+  // reconnect if we lost it
+  if( WiFi.status() != WL_CONNECTED ) 
+  {
+    DEBUGPRINT(__FUNCTION__);
+    DEBUGPRINTLN(": WiFi connection lost. Trying again."); 
+    WiFi.disconnect();
+    setupWiFi();
+    return;
+  }
+
+  if( !iotaClient.connected() )
+  {
+    DEBUGPRINT(__FUNCTION__);
+    DEBUGPRINTLN(": Iota Broker connection lost. Trying again."); 
+    iotaClient.disconnect();
+    setupIotaBroker();
+    return;
+  }
+  
+  // process messages
   iotaClient.loop();
 
   // update all 
@@ -85,7 +105,10 @@ void setupWiFi()
   while( wifiStatus != WL_CONNECTED && (wifiConnAttempts < 3) )
   {
     wifiStatus = WiFi.begin(HOME_WIFI_SSID, HOME_WIFI_PASS);
-    //delay(10000);
+    if( wifiStatus != WL_CONNECTED ) 
+    {
+      delay(10000);
+    }
     ++wifiConnAttempts;
   }
   

@@ -27,7 +27,7 @@ typedef struct _client_state
 #define IOTA_TOPIC_SWITCH_CNTRL     "iota/switch/cntrl"
 #define IOTA_TOPIC_SWITCH_STATUS    "iota/switch/status"
 
-#define IOTA_NUM_SWITCHES           4
+#define IOTA_NUM_SWITCHES           3
 #define IOTA_SWITCH_TX_PIN          2
 #define IOTA_SWITCH_PULSE_LEN        320
 #define IOTA_SWITCH_SYSTEM_CODE     "11111"
@@ -35,8 +35,7 @@ char IOTA_SWITCH_UNIT_CODE[IOTA_NUM_SWITCHES][5] =
 {    // n units, each with 5 character code
   {'1','0','0','0','0'},
   {'0','1','0','0','0'},
-  {'0','0','1','0','0'},
-  {'0','0','0','1','0'}
+  {'0','0','1','0','0'}
 };
 
 typedef struct _switch_payload

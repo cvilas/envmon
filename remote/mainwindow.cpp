@@ -21,7 +21,6 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(&_timer, SIGNAL(timeout()), _pUi->swStatus0, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), _pUi->swStatus1, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), _pUi->swStatus2, SLOT(onTimer()));
-    QObject::connect(&_timer, SIGNAL(timeout()), _pUi->swStatus3, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), &_connStatus, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), &_stationStatus, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimer()));
@@ -116,22 +115,6 @@ void MainWindow::on_onBtn2_clicked()
 }
 
 //-----------------------------------------------------------------------------
-void MainWindow::on_offBtn3_clicked()
-//-----------------------------------------------------------------------------
-{
-    _iotaClient.setSwitchOn(3,false);
-    _pUi->swStatus3->setState(Indicator::TO_OFF);
-}
-
-//-----------------------------------------------------------------------------
-void MainWindow::on_onBtn3_clicked()
-//-----------------------------------------------------------------------------
-{
-    _iotaClient.setSwitchOn(3,true);
-    _pUi->swStatus3->setState(Indicator::TO_ON);
-}
-
-//-----------------------------------------------------------------------------
 void MainWindow::onSwitchStatusChanged(int channel, bool on)
 //-----------------------------------------------------------------------------
 {
@@ -146,9 +129,6 @@ void MainWindow::onSwitchStatusChanged(int channel, bool on)
         break;
     case 2:
         _pUi->swStatus2->setState(state);
-        break;
-    case 3:
-        _pUi->swStatus3->setState(state);
         break;
     default:
         break;
