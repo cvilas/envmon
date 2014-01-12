@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <RCSwitch.h>
+#include <DHT.h>
 //#include <SD.h>
 #include <Adafruit_BMP085.h>
 #include "connection_info.h"
@@ -15,8 +16,8 @@
 
 #define IDLE_UPDATE_TIME_MS 10000
 
-void setupWiFi();
-void setupIotaBroker();
+boolean setupWiFi();
+boolean setupIotaBroker();
 void initialiseIotaDevices();
 void transmitStatus();
 void transmitSwitchStatus();
@@ -27,10 +28,11 @@ void setSwitchesFromStatus();
 void iotaCallback(char* topic, byte* payload, unsigned int length);
 
 // Devices
-WiFiClient    wifiClient;
-RCSwitch      switchController;
+WiFiClient      wifiClient;
+RCSwitch        switchController;
 Adafruit_BMP085 bmp;
-PubSubClient  iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifiClient);
+DHT             dht;
+PubSubClient    iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifiClient);
 
 unsigned long startTime = 0;
 int numActiveClients = 0;
@@ -43,8 +45,14 @@ void setup()
 {
   Serial.begin(9600);
   DEBUGPRINTLN("Starting up");
-  setupWiFi();
-  setupIotaBroker(); 
+  if( !setupWiFi() )
+  {
+    while(true);
+  }
+  if( !setupIotaBroker() )
+  {
+    while(true);
+  } 
   initialiseIotaDevices();
   transmitStatus();
 }
@@ -59,7 +67,10 @@ void loop()
     DEBUGPRINT(__FUNCTION__);
     DEBUGPRINTLN(": WiFi connection lost. Trying again."); 
     WiFi.disconnect();
-    setupWiFi();
+    if( !setupWiFi() )
+    {
+      delay(30000);
+    }
     return;
   }
 
@@ -68,7 +79,10 @@ void loop()
     DEBUGPRINT(__FUNCTION__);
     DEBUGPRINTLN(": Iota Broker connection lost. Trying again."); 
     iotaClient.disconnect();
-    setupIotaBroker();
+    if( !setupIotaBroker() )
+    {
+      delay(30000);
+    }
     return;
   }
   
@@ -78,6 +92,7 @@ void loop()
   // update all 
   // note: using unsigned int for subtraction means this works even when
   // millis() rolls over after 50 days.
+  // note: IDLE_UPDATE_TIME_MS must be greater than dht.getMinimumSamplingPeriod()
   unsigned long now = millis();
   if( now - startTime > IDLE_UPDATE_TIME_MS )
   {
@@ -88,7 +103,7 @@ void loop()
 }
 
 //=============================================================================
-void setupWiFi()
+boolean setupWiFi()
 //=============================================================================
 { 
   // check for the presence of wifi shield:
@@ -96,7 +111,7 @@ void setupWiFi()
   {
     DEBUGPRINT(__FUNCTION__);
     DEBUGPRINTLN(": No WiFi radio"); 
-    while(true);
+    return false;
   } 
    
   // connect to wifi network
@@ -116,8 +131,8 @@ void setupWiFi()
   if( wifiStatus != WL_CONNECTED )
   {
     DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINT(": WiFi connection failed");
-    while(true);
+    DEBUGPRINTLN(": WiFi connection failed");
+    return false;
   }
   else
   {
@@ -126,10 +141,11 @@ void setupWiFi()
     DEBUGPRINT(": Connected to ");   
     DEBUGPRINTLN( WiFi.SSID() );
   }
+  return true;
 }
 
 //=============================================================================
-void setupIotaBroker()
+boolean setupIotaBroker()
 //=============================================================================
 {
   boolean isConnected = false;
@@ -147,8 +163,7 @@ void setupIotaBroker()
   if( !isConnected )
   {
     DEBUGPRINTLN(" failed");
-    DEBUGPRINTLN("Reset me and try again");
-    while(true);
+    return false;
   }
   else
   {
@@ -168,6 +183,8 @@ void setupIotaBroker()
 
   DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_LAMP_CNTRL);
   iotaClient.subscribe(IOTA_TOPIC_LAMP_CNTRL);
+  
+  return true;
 }
 
 //=============================================================================
@@ -196,8 +213,12 @@ void initialiseIotaDevices()
   pinMode(RGB_LED_B_PIN, OUTPUT);
   setLampColor(0,0,0);
   
-  // ------------------ Temp./Press. sensor ---------------------
+  // ------------------ pressure sensor ---------------------
   bmp.begin();
+
+  // ------------------ humidity sensor ---------------------
+  pinMode(IOTA_HUMIDITY_RX_PIN, INPUT);
+  dht.setup(IOTA_HUMIDITY_RX_PIN);
 
   // ------------------ PIR sensor ---------------------
   // todo: read sensor
@@ -233,7 +254,11 @@ void transmitWeather()
   w.temperature10C = (int32_t)(10 * bmp.readTemperature());
   w.pressurePa = bmp.readPressure();
   w.pressureAlt10m = (int32_t)(10 * bmp.readAltitude());
-  w.humidityPercent = 0; //TODO
+  w.humidityPercent = (int32_t)(dht.getHumidity());
+  if( dht.getStatus() != DHT::ERROR_NONE )
+  {
+    w.humidityPercent = -1;
+  }
   
   iotaClient.publish(IOTA_TOPIC_WEATHER, (uint8_t*)&w, sizeof(w));
 }

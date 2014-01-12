@@ -65,6 +65,7 @@ typedef struct _lamp_payload
 // Weather Payload
 //-----------------------------------------------------------------------------
 #define IOTA_TOPIC_WEATHER     "iota/weather"
+#define IOTA_HUMIDITY_RX_PIN    14
 
 typedef struct weather_payload
 {
@@ -73,5 +74,11 @@ typedef struct weather_payload
   int32_t pressureAlt10m;    // pressure altitude in mx10 based on standard atmosphere
   int32_t humidityPercent; 
 }weather_payload;
+
+//-----------------------------------------------------------------------------
+// PIR Payload
+//-----------------------------------------------------------------------------
+#define IOTA_PIR_RX_PIN    15
+
 
 #endif // IOTA_MESSAGES_H
