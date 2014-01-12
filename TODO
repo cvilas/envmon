@@ -8,6 +8,7 @@ TODOLIST
 		- configurable ON time
 2. Weather
 	- Temperature icon with hue based on comfort level (green: good, red: warm, blue: cold)
+	- Set sea level pressure from remote
 3. PIR
 	- Display last n detections
 4. Lamp configuration
@@ -24,6 +25,7 @@ TODOLIST
 	- Data logging to SD card 
 	- Offline graphing tools (process data files from SD)
 	- Online graphing (view realtime data on gui - define data duration)
+	- Integrate an LCD module
 6. Fault recovery
 	- Station: 
 		- Detect disconnect with server and reconnect automatically
@@ -32,4 +34,7 @@ TODOLIST
 	- On disconnection, set all indicators to INACTIVE
 	- Mainwindow central widget must be whole screen, not just switches
 	- Make UI beautiful - redesign using QtQuick/QML
-
+	- Checkout DFRobot Bluno Android interface for inspiration
+8. Documentation
+	- schematics
+	- Update README with objective, implementation summary, status, bugs and wishlist
