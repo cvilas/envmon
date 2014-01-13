@@ -8,8 +8,9 @@
 #include <PubSubClient.h>
 #include <RCSwitch.h>
 #include <DHT.h>
-//#include <SD.h>
 #include <Adafruit_BMP085.h>
+//#include <SD.h>
+#include <WiFiUdp.h>
 #include "connection_info.h"
 #include "iota_messages.h"
 #include "helper_defs.h"
@@ -26,9 +27,11 @@ void setLampColor(uint8_t r, uint8_t g, uint8_t b);
 void setSwitch(uint8_t ch, uint8_t st);
 void setSwitchesFromStatus();
 void iotaCallback(char* topic, byte* payload, unsigned int length);
+unsigned long requestNtpTime();
 
 // Devices
 WiFiClient      wifiClient;
+WiFiUDP         timeReader;
 RCSwitch        switchController;
 Adafruit_BMP085 bmp;
 DHT             dht;
@@ -36,6 +39,13 @@ PubSubClient    iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifi
 
 unsigned long startTime = 0;
 int numActiveClients = 0;
+
+#define NTP_LOCAL_PORT 2390      // local port to listen for UDP packets
+#define NTP_PACKET_SIZE 48 // NTP time stamp is in the first 48 bytes of the message
+#define NTP_SERVER_PORT 123 // NTP time servers listen on this port 
+IPAddress ntpTimeServer(129, 6, 15, 28); // time.nist.gov NTP server
+byte ntpPacketBuffer[ NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets 
+
 
 switch_payload switchStatus[IOTA_NUM_SWITCHES];
 
@@ -224,7 +234,7 @@ void initialiseIotaDevices()
   // todo: read sensor
 
   // ------------------ NTP ---------------------
-  // todo: read time. set rtc
+  timeReader.begin(NTP_LOCAL_PORT);
 
   // ------------------ SD card logging ---------------------
   // todo: read sensor
@@ -418,4 +428,54 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
 }
 
 
+//=============================================================================
+unsigned long requestNtpTime()
+//=============================================================================
+{
+  // set all bytes in the buffer to 0
+  memset(ntpPacketBuffer, 0, NTP_PACKET_SIZE); 
+  // Initialize values needed to form NTP request
+  // (see URL above for details on the packets)
+  ntpPacketBuffer[0] = 0b11100011;   // LI, Version, Mode
+  ntpPacketBuffer[1] = 0;     // Stratum, or type of clock
+  ntpPacketBuffer[2] = 6;     // Polling Interval
+  ntpPacketBuffer[3] = 0xEC;  // Peer Clock Precision
+  // 8 bytes of zero for Root Delay & Root Dispersion
+  ntpPacketBuffer[12]  = 49; 
+  ntpPacketBuffer[13]  = 0x4E;
+  ntpPacketBuffer[14]  = 49;
+  ntpPacketBuffer[15]  = 52;
+  
+  // all NTP fields have been given values, now
+  // you can send a packet requesting a timestamp: 		   
+  timeReader.beginPacket(ntpTimeServer, NTP_SERVER_PORT); //NTP requests are to port 123
+  timeReader.write(ntpPacketBuffer,NTP_PACKET_SIZE);
+  timeReader.endPacket(); 
+  
+  // wait for reply
+  int replySz = timeReader.parsePacket();
+  int nAttempts = 2;
+  while( !replySz && nAttempts )
+  {
+    delay(1000);
+    replySz = timeReader.parsePacket();
+    --nAttempts;
+  }
+  
+  //todo: check replySz == NTP_PACKET_SIZE
+  
+  if( replySz )
+  {
+    timeReader.read(ntpPacketBuffer, NTP_PACKET_SIZE);  // read the packet into the buffer
+    //the timestamp starts at byte 40 of the received packet and is four bytes,
+    // or two words, long. First, esxtract the two words:
 
+    unsigned long highWord = word(ntpPacketBuffer[40], ntpPacketBuffer[41]);
+    unsigned long lowWord = word(ntpPacketBuffer[42], ntpPacketBuffer[43]);  
+    // combine the four bytes (two words) into a long integer
+    // this is NTP time (seconds since Jan 1 1900):
+    unsigned long secsSince1900 = highWord << 16 | lowWord;  
+    return secsSince1900;
+  }
+  return 0;
+}
