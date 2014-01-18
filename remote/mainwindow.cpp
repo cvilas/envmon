@@ -54,6 +54,9 @@ void MainWindow::onConnectionStatusChanged(bool connected)
 //-----------------------------------------------------------------------------
 {
     _connStatus.setState( connected ? Indicator::ON : Indicator::OFF );
+    _pUi->swStatus0->setState( Indicator::INACTIVE );
+    _pUi->swStatus1->setState( Indicator::INACTIVE );
+    _pUi->swStatus2->setState( Indicator::INACTIVE );
     _pUi->centralWidget->setEnabled(connected);
 }
 
@@ -64,6 +67,12 @@ void MainWindow::onTimer()
     bool isStationActive = _iotaClient.isStationActive();
     _stationStatus.setState( isStationActive ? Indicator::ON : Indicator::OFF );
     _pUi->switchGroup->setEnabled( isStationActive );
+    if( !isStationActive )
+    {
+        _pUi->swStatus0->setState( Indicator::INACTIVE );
+        _pUi->swStatus1->setState( Indicator::INACTIVE );
+        _pUi->swStatus2->setState( Indicator::INACTIVE );
+    }
 }
 
 //-----------------------------------------------------------------------------

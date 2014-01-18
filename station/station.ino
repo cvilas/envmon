@@ -27,6 +27,7 @@ void setSwitch(uint8_t ch, uint8_t st);
 void setSwitchesFromStatus();
 boolean isMotionSensorToggled();
 void iotaCallback(char* topic, byte* payload, unsigned int length);
+void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 // Devices
 WiFiClient      wifiClient;

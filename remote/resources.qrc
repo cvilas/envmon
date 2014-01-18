@@ -12,5 +12,10 @@
         <file>images/cloud_disabled.png</file>
         <file>images/station_standby.png</file>
         <file>images/station_disabled.png</file>
+        <file>images/plug.png</file>
+        <file>images/weather.png</file>
+        <file>images/lamp.png</file>
+        <file>images/intruder.png</file>
+        <file>images/settings.png</file>
     </qresource>
 </RCC>
