@@ -9,8 +9,6 @@
 #include <RCSwitch.h>
 #include <DHT.h>
 #include <Adafruit_BMP085.h>
-//#include <SD.h>
-#include <WiFiUdp.h>
 #include "connection_info.h"
 #include "iota_messages.h"
 #include "helper_defs.h"
@@ -20,51 +18,51 @@
 boolean setupWiFi();
 boolean setupIotaBroker();
 void initialiseIotaDevices();
-void transmitStatus();
 void transmitSwitchStatus();
 void transmitWeather();
+void transmitMotionSensorStatus();
+void transmitAllStatus();
 void setLampColor(uint8_t r, uint8_t g, uint8_t b);
 void setSwitch(uint8_t ch, uint8_t st);
 void setSwitchesFromStatus();
+boolean isMotionSensorToggled();
 void iotaCallback(char* topic, byte* payload, unsigned int length);
-unsigned long requestNtpTime();
 
 // Devices
 WiFiClient      wifiClient;
-WiFiUDP         timeReader;
 RCSwitch        switchController;
 Adafruit_BMP085 bmp;
 DHT             dht;
 PubSubClient    iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifiClient);
 
-unsigned long startTime = 0;
-int numActiveClients = 0;
+unsigned long lastTimeMs = 0;
+uint8_t numActiveClients = 0;
 
-#define NTP_LOCAL_PORT 2390      // local port to listen for UDP packets
-#define NTP_PACKET_SIZE 48 // NTP time stamp is in the first 48 bytes of the message
-#define NTP_SERVER_PORT 123 // NTP time servers listen on this port 
-IPAddress ntpTimeServer(129, 6, 15, 28); // time.nist.gov NTP server
-byte ntpPacketBuffer[ NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets 
+boolean wasMotionSensorHigh = false;
+boolean isMotionSensorHigh = false;
 
-
-switch_payload switchStatus[IOTA_NUM_SWITCHES];
+switch_payload       switchStatus[IOTA_NUM_SWITCHES];
+motion_sense_payload motionSensorStatus;
 
 //=============================================================================
 void setup()
 //=============================================================================
 {
   Serial.begin(9600);
-  DEBUGPRINTLN("Starting up");
+  DEBUGPRINTLN("Start");
+  
   if( !setupWiFi() )
   {
     while(true);
   }
+    
   if( !setupIotaBroker() )
   {
     while(true);
   } 
+  
   initialiseIotaDevices();
-  transmitStatus();
+  transmitAllStatus();
 }
 
 //=============================================================================
@@ -74,8 +72,7 @@ void loop()
   // reconnect if we lost it
   if( WiFi.status() != WL_CONNECTED ) 
   {
-    DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINTLN(": WiFi connection lost. Trying again."); 
+    DEBUGPRINTLN("WiFi lost. Retrying."); 
     WiFi.disconnect();
     if( !setupWiFi() )
     {
@@ -86,8 +83,7 @@ void loop()
 
   if( !iotaClient.connected() )
   {
-    DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINTLN(": Iota Broker connection lost. Trying again."); 
+    DEBUGPRINTLN("Iota Broker lost. Retrying."); 
     iotaClient.disconnect();
     if( !setupIotaBroker() )
     {
@@ -96,20 +92,31 @@ void loop()
     return;
   }
   
-  // process messages
+  // check motion sensor
+  if( isMotionSensorToggled() )
+  {
+    transmitMotionSensorStatus();
+  }
+  
+  // process remote messages
   iotaClient.loop();
 
-  // update all 
-  // note: using unsigned int for subtraction means this works even when
-  // millis() rolls over after 50 days.
+  // note: millis() rolls over after 50 days.
   // note: IDLE_UPDATE_TIME_MS must be greater than dht.getMinimumSamplingPeriod()
   unsigned long now = millis();
-  if( now - startTime > IDLE_UPDATE_TIME_MS )
+  if( now - lastTimeMs > IDLE_UPDATE_TIME_MS )
   {
-    startTime = now;
-    transmitStatus();
+    lastTimeMs = now;
     setSwitchesFromStatus();
-  }
+    
+    if( numActiveClients != 0)
+    {
+      transmitSwitchStatus();
+      transmitWeather();
+    } // remotes alive
+    
+  } // update time
+  
 }
 
 //=============================================================================
@@ -119,8 +126,7 @@ boolean setupWiFi()
   // check for the presence of wifi shield:
   if (WiFi.status() == WL_NO_SHIELD) 
   {
-    DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINTLN(": No WiFi radio"); 
+    DEBUGPRINTLN("No WiFi radio"); 
     return false;
   } 
    
@@ -140,15 +146,13 @@ boolean setupWiFi()
   // wifi connection status
   if( wifiStatus != WL_CONNECTED )
   {
-    DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINTLN(": WiFi connection failed");
+    DEBUGPRINTLN("WiFi failed");
     return false;
   }
   else
   {
     // print the SSID of the network you're attached to:
-    DEBUGPRINT(__FUNCTION__);
-    DEBUGPRINT(": Connected to ");   
+    DEBUGPRINT("Connected to ");   
     DEBUGPRINTLN( WiFi.SSID() );
   }
   return true;
@@ -167,8 +171,7 @@ boolean setupIotaBroker()
   }
   
   // connection status
-  DEBUGPRINT(__FUNCTION__);
-  DEBUGPRINT(": Connection to ");
+  DEBUGPRINT("Connection to ");
   DEBUGPRINT(IOTA_BROKER_URL);
   if( !isConnected )
   {
@@ -177,14 +180,12 @@ boolean setupIotaBroker()
   }
   else
   {
-    DEBUGPRINTLN(" succeeded");   
+    DEBUGPRINTLN(" ok");   
   }
   
   // setup subscriptions
-  DEBUGPRINT(__FUNCTION__);
-  DEBUGPRINTLN(": Subscriptions:");
+  DEBUGPRINTLN("Subscriptions:");
  
-  //special message to determine how many clients are connected
   DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_CLIENT_STATE_SUBSCRIPTION);
   iotaClient.subscribe(IOTA_TOPIC_CLIENT_STATE_SUBSCRIPTION);
   
@@ -194,6 +195,9 @@ boolean setupIotaBroker()
   DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_LAMP_CNTRL);
   iotaClient.subscribe(IOTA_TOPIC_LAMP_CNTRL);
   
+  DEBUGPRINT("- "); DEBUGPRINTLN(IOTA_TOPIC_MOTION_SENSOR_GET);
+  iotaClient.subscribe(IOTA_TOPIC_MOTION_SENSOR_GET);
+
   return true;
 }
 
@@ -208,8 +212,7 @@ void initialiseIotaDevices()
   //switchController.setRepeatTransmit(2);
   
   // reset all switches 
-  DEBUGPRINT(__FUNCTION__);
-  DEBUGPRINTLN(": Resetting switches.");   
+  DEBUGPRINTLN("Reset switches.");   
   for(int i = 0; i < IOTA_NUM_SWITCHES; ++i)
   {
     switchController.switchOff(IOTA_SWITCH_SYSTEM_CODE,IOTA_SWITCH_UNIT_CODE[i]);
@@ -231,29 +234,11 @@ void initialiseIotaDevices()
   dht.setup(IOTA_HUMIDITY_RX_PIN);
 
   // ------------------ PIR sensor ---------------------
-  // todo: read sensor
-
-  // ------------------ NTP ---------------------
-  timeReader.begin(NTP_LOCAL_PORT);
-
-  // ------------------ SD card logging ---------------------
-  // todo: read sensor
-  
+  pinMode(IOTA_PIR_RX_PIN, INPUT);
+  isMotionSensorToggled();
+ 
   // note start time
-  startTime = millis();
-}
-
-//=============================================================================
-void transmitStatus()
-//=============================================================================
-{
-  if( numActiveClients == 0)
-  {
-    return;
-  }
-  
-  transmitSwitchStatus();
-  transmitWeather();
+  lastTimeMs = millis();
 }
 
 //=============================================================================
@@ -277,12 +262,29 @@ void transmitWeather()
 void transmitSwitchStatus()
 //=============================================================================
 {
-  // ------------------- Switches -----------------------------
   for(int i = 0; i < IOTA_NUM_SWITCHES; ++i)
   {
     switch_payload* pReply = &(switchStatus[i]);
     iotaClient.publish(IOTA_TOPIC_SWITCH_STATUS, (uint8_t*)pReply, sizeof(switch_payload));
   }
+}
+
+//=============================================================================
+void transmitMotionSensorStatus()
+//=============================================================================
+{  
+  iotaClient.publish(IOTA_TOPIC_MOTION_SENSOR_STATUS, 
+                      (uint8_t*)&motionSensorStatus, 
+                      sizeof(motionSensorStatus));
+}
+
+//=============================================================================
+void transmitAllStatus()
+//=============================================================================
+{
+  transmitWeather();
+  transmitSwitchStatus();
+  transmitMotionSensorStatus();
 }
 
 //=============================================================================
@@ -325,35 +327,66 @@ void setSwitchesFromStatus()
 }
 
 //=============================================================================
-void iotaCallback(char* topic, byte* payload, unsigned int length)
+boolean isMotionSensorToggled()
 //=============================================================================
 {
- 
+  isMotionSensorHigh = digitalRead(IOTA_PIR_RX_PIN);
+  boolean tripped = (wasMotionSensorHigh != isMotionSensorHigh);
+  wasMotionSensorHigh = isMotionSensorHigh;
+  
+  if( tripped )
+  {
+    motionSensorStatus.currentState = isMotionSensorHigh;
+    unsigned long t = millis();
+
+    DEBUGPRINT("Motion: ");
+    DEBUGPRINT(motionSensorStatus.currentState);
+    DEBUGPRINT(" [");
+    DEBUGPRINT(t);
+    DEBUGPRINTLN("]");
+
+    if( isMotionSensorHigh )
+    {
+      motionSensorStatus.lastOnTimeMs = t;
+    }
+    else
+    {
+      motionSensorStatus.lastOffTimeMs = t;
+    }    
+  }
+  return tripped;
+}
+
+//=============================================================================
+void iotaCallback(char* topic, byte* payload, unsigned int length)
+//=============================================================================
+{ 
   // ------------------- Client state -----------------------------
   
   if( strstr(topic, IOTA_TOPIC_CLIENT_STATE) )
   {   
-    if( length )
+    if( length == sizeof(client_state) )
     {
       client_state* cmd = (client_state*)payload;
-      DEBUGPRINT(__FUNCTION__); DEBUGPRINT(": Client ");
+      DEBUGPRINT("Client ");
       DEBUGPRINTHEX(cmd->sid); DEBUGPRINT(" ");
       if( cmd->state )
       {
         DEBUGPRINT("alive");
         numActiveClients++;
-        transmitStatus();
+        transmitAllStatus();
       }
       else
       {
         DEBUGPRINT("dead");
         numActiveClients--;
-        
+      
         // bug in the client code means we can get 2 'dead' messages
-        // from a clientexit
+        // from a client exit
         if( numActiveClients < 0) numActiveClients = 0;
       }
-      DEBUGPRINT(" [active clients = "); DEBUGPRINT(numActiveClients); DEBUGPRINTLN("]");
+    
+      DEBUGPRINT(" [num clients = "); DEBUGPRINT(numActiveClients); DEBUGPRINTLN("]");
       if( cmd->state == 0 ) // remove redundant messages from broker
       {
         iotaClient.publish(topic, NULL, 0, true);
@@ -368,14 +401,14 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
   {
     if( length != sizeof(switch_payload) )
     {
-      DEBUGPRINT(__FUNCTION__); DEBUGPRINTLN(": ERROR: Payload size incorrect. Ignoring.");
+      DEBUGPRINTLN("Wrong payload. Ignoring.");
       return;
     }
     
     // cast to type
     switch_payload* cmd = (switch_payload*)payload;
-    DEBUGPRINT(__FUNCTION__); DEBUGPRINT(": Set Switch ");
-    DEBUGPRINT(cmd->channel); DEBUGPRINT(" -> "); DEBUGPRINTLN(cmd->status?("ON"):("OFF"));
+    DEBUGPRINT("Set Switch ");
+    DEBUGPRINT(cmd->channel); DEBUGPRINTLN(cmd->status?(" ON"):(" OFF"));
       
     if( cmd->channel < IOTA_NUM_SWITCHES )
     {
@@ -391,7 +424,7 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
     }
     
     return;
-  } //switch control
+  } // switch control
    
   // ------------------- lamps -----------------------------
 
@@ -399,7 +432,7 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
   {
     if( length != sizeof(lamp_payload) )
     {
-      DEBUGPRINT(__FUNCTION__); DEBUGPRINTLN(": ERROR: Payload size incorrect. Ignoring.");
+      DEBUGPRINTLN("Wrong payload. Ignoring.");
       return;
     }
     
@@ -413,69 +446,20 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
     lamp.b = pCmd->b;
     iotaClient.publish(IOTA_TOPIC_LAMP_STATUS, (uint8_t*)&lamp, sizeof(lamp));
     return;
-  }
+  } // lamps
   
   // ------------------ PIR sensor ---------------------
-  // - send last detected motion time
-   
-  // ------------------ NTP sync ---------------------
-  // - read NTC
-  // - sync
-  // - send 'before' and 'after' time
-
-  // ------------------ SD card logging ---------------------
+  
+  if( !strcmp(topic, IOTA_TOPIC_MOTION_SENSOR_GET) )
+  {
+    if( length )
+    {
+      DEBUGPRINTLN("Wrong payload. Ignoring.");
+      return;
+    }
+    transmitMotionSensorStatus();
+    return;
+  } // pir
 
 }
 
-
-//=============================================================================
-unsigned long requestNtpTime()
-//=============================================================================
-{
-  // set all bytes in the buffer to 0
-  memset(ntpPacketBuffer, 0, NTP_PACKET_SIZE); 
-  // Initialize values needed to form NTP request
-  // (see URL above for details on the packets)
-  ntpPacketBuffer[0] = 0b11100011;   // LI, Version, Mode
-  ntpPacketBuffer[1] = 0;     // Stratum, or type of clock
-  ntpPacketBuffer[2] = 6;     // Polling Interval
-  ntpPacketBuffer[3] = 0xEC;  // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
-  ntpPacketBuffer[12]  = 49; 
-  ntpPacketBuffer[13]  = 0x4E;
-  ntpPacketBuffer[14]  = 49;
-  ntpPacketBuffer[15]  = 52;
-  
-  // all NTP fields have been given values, now
-  // you can send a packet requesting a timestamp: 		   
-  timeReader.beginPacket(ntpTimeServer, NTP_SERVER_PORT); //NTP requests are to port 123
-  timeReader.write(ntpPacketBuffer,NTP_PACKET_SIZE);
-  timeReader.endPacket(); 
-  
-  // wait for reply
-  int replySz = timeReader.parsePacket();
-  int nAttempts = 2;
-  while( !replySz && nAttempts )
-  {
-    delay(1000);
-    replySz = timeReader.parsePacket();
-    --nAttempts;
-  }
-  
-  //todo: check replySz == NTP_PACKET_SIZE
-  
-  if( replySz )
-  {
-    timeReader.read(ntpPacketBuffer, NTP_PACKET_SIZE);  // read the packet into the buffer
-    //the timestamp starts at byte 40 of the received packet and is four bytes,
-    // or two words, long. First, esxtract the two words:
-
-    unsigned long highWord = word(ntpPacketBuffer[40], ntpPacketBuffer[41]);
-    unsigned long lowWord = word(ntpPacketBuffer[42], ntpPacketBuffer[43]);  
-    // combine the four bytes (two words) into a long integer
-    // this is NTP time (seconds since Jan 1 1900):
-    unsigned long secsSince1900 = highWord << 16 | lowWord;  
-    return secsSince1900;
-  }
-  return 0;
-}

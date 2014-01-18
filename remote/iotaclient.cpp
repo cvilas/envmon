@@ -17,7 +17,7 @@ IotaClient::IotaClient()
 {
     // random client session id
     qsrand( QDateTime::currentDateTime().toTime_t());
-    CLIENT_LAST_WILL.sid = qrand();
+    CLIENT_LAST_WILL.sid = qrand()&0xFF;
 
     mosqpp::lib_init();
     _timekeeper.start();
