@@ -27,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(&_iotaClient, SIGNAL(switchStatusChanged(int,bool)), this, SLOT(onSwitchStatusChanged(int,bool)));
     QObject::connect(&_iotaClient, SIGNAL(weatherStatusChanged(float,int,float,int)), this, SLOT(onWeatherStatusChanged(float, int, float, int)));
     QObject::connect(&_iotaClient, SIGNAL(connectionStatusChanged(bool)), this, SLOT(onConnectionStatusChanged(bool)));
+    QObject::connect(&_iotaClient, SIGNAL(numRemotesChanged(int)), this, SLOT(onNumRemotesChanged(int)));
 
     on_actionReconnect_triggered();
 
@@ -58,6 +59,13 @@ void MainWindow::onConnectionStatusChanged(bool connected)
     _pUi->swStatus1->setState( Indicator::INACTIVE );
     _pUi->swStatus2->setState( Indicator::INACTIVE );
     _pUi->centralWidget->setEnabled(connected);
+}
+
+//-----------------------------------------------------------------------------
+void MainWindow::onNumRemotesChanged(int nRemotes)
+//-----------------------------------------------------------------------------
+{
+    _pUi->numClients->setText( QString::number(nRemotes) );
 }
 
 //-----------------------------------------------------------------------------

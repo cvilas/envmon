@@ -13,11 +13,12 @@ IotaClient::IotaClient()
     : mosquittopp(NULL),
       _isConnected(false),
       _messageRecvd(false),
-      _messagePublished(false)
+      _messagePublished(false),
+      _nRemotes(0)
 {
     // random client session id
     qsrand( QDateTime::currentDateTime().toTime_t());
-    CLIENT_LAST_WILL.sid = qrand()&0xFF;
+    CLIENT_LAST_WILL.sid = qrand();
 
     mosqpp::lib_init();
     _timekeeper.start();
@@ -200,6 +201,7 @@ void IotaClient::on_connect(int rc)
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_SWITCH_STATUS,/*qos*/0);
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_WEATHER,/*qos*/0);
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_LAMP_STATUS,/*qos*/0);
+        rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_STATION_INFO,/*qos*/0);
     }
 
     // let station know of my existence
@@ -246,6 +248,7 @@ void IotaClient::on_message(const struct mosquitto_message *message)
         emit switchStatusChanged(pValue->channel, pValue->status);
     }//switch status reply
 
+    // weather
     if( !strcmp(message->topic, IOTA_TOPIC_WEATHER) )
     {
         if( message->payloadlen != sizeof(weather_payload) )
@@ -257,6 +260,22 @@ void IotaClient::on_message(const struct mosquitto_message *message)
         weather_payload* pValue = (weather_payload*)message->payload;
         emit weatherStatusChanged(pValue->temperature10C/10.f, pValue->pressurePa, pValue->pressureAlt10m/10.f, pValue->humidityPercent);
     }//weather
+
+    // station info
+    if( !strcmp(message->topic, IOTA_TOPIC_STATION_INFO) )
+    {
+        if( message->payloadlen != sizeof(station_info) )
+        {
+            qDebug() << "[IotaClient::on_message] Topic " << message->topic
+                     << ":\nPayload size incorrect. Ignoring";
+            return;
+        }
+
+        // process info
+        station_info* pValue = (station_info*)message->payload;
+        _nRemotes = pValue->numClients;
+        emit numRemotesChanged(_nRemotes);
+    }//station info
 }
 
 //-----------------------------------------------------------------------------

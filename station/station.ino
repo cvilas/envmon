@@ -21,6 +21,7 @@ void initialiseIotaDevices();
 void transmitSwitchStatus();
 void transmitWeather();
 void transmitMotionSensorStatus();
+void transmitStationInfo();
 void transmitAllStatus();
 void setLampColor(uint8_t r, uint8_t g, uint8_t b);
 void setSwitch(uint8_t ch, uint8_t st);
@@ -37,7 +38,7 @@ DHT             dht;
 PubSubClient    iotaClient(IOTA_BROKER_URL, IOTA_BROKER_PORT, iotaCallback, wifiClient);
 
 unsigned long lastTimeMs = 0;
-uint8_t numActiveClients = 0;
+int numActiveClients = 0;
 
 boolean wasMotionSensorHigh = false;
 boolean isMotionSensorHigh = false;
@@ -280,12 +281,22 @@ void transmitMotionSensorStatus()
 }
 
 //=============================================================================
+void transmitStationInfo()
+//=============================================================================
+{
+  station_info info;
+  info.numClients = numActiveClients;
+  iotaClient.publish(IOTA_TOPIC_STATION_INFO, (uint8_t*)&info, sizeof(info));
+}
+
+//=============================================================================
 void transmitAllStatus()
 //=============================================================================
 {
   transmitWeather();
   transmitSwitchStatus();
   transmitMotionSensorStatus();
+  transmitStationInfo();
 }
 
 //=============================================================================
@@ -381,6 +392,7 @@ void iotaCallback(char* topic, byte* payload, unsigned int length)
       {
         DEBUGPRINT("dead");
         numActiveClients--;
+        transmitStationInfo();
       
         // bug in the client code means we can get 2 'dead' messages
         // from a client exit

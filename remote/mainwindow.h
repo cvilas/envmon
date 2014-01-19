@@ -26,6 +26,7 @@ private slots:
     void onSwitchStatusChanged(int channel, bool on);
     void onWeatherStatusChanged(float celsius, int pascals, float altitudeMeters, int humidityPercent);
     void onConnectionStatusChanged(bool connected);
+    void onNumRemotesChanged(int nRemotes);
     void onTimer();
 
     void on_offBtn0_clicked();

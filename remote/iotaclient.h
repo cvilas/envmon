@@ -18,6 +18,7 @@ public:
     void close(bool notify);
     bool isConnected() const { return _isConnected; }
     inline bool isStationActive() const;
+    int getNumActiveRemotes() const { return _nRemotes; }
 
     int msSinceLastMessage() const;
 
@@ -28,7 +29,7 @@ signals:
     void switchStatusChanged(int channel, bool on);
     void weatherStatusChanged(float celsius, int pascals, float altitudeMeters, int humidityPercent);
     void connectionStatusChanged(bool connected);
-    void stationStatusChanged(bool active);
+    void numRemotesChanged(int nRemotes);
 
 private:
     void on_connect(int rc);
@@ -44,6 +45,7 @@ private:
     bool _isConnected;
     bool _messageRecvd;
     bool _messagePublished;
+    int  _nRemotes; // number of remote clients connected to station
     QTime _timekeeper;
 }; // MqttClient
 
