@@ -19,7 +19,8 @@ SOURCES += main.cpp\
     ../ThirdParty/mosquitto/src/mosquittopp.cpp \
     connectionstatusindicator.cpp \
     stationstatusindicator.cpp \
-    iotaclient.cpp
+    iotaclient.cpp \
+    motionsensestatus.cpp
 
 HEADERS  += mainwindow.h \
     indicator.h \
@@ -30,7 +31,8 @@ HEADERS  += mainwindow.h \
     connectionstatusindicator.h \
     stationstatusindicator.h \
     ../iota_messages.h \
-    iotaclient.h
+    iotaclient.h \
+    motionsensestatus.h
 
 unix:!android:LIBS += -L$$PWD/../ThirdParty/mosquitto/lib/linux64/
 android:LIBS += -L$$PWD/../ThirdParty/mosquitto/lib/android/

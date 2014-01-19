@@ -202,6 +202,7 @@ void IotaClient::on_connect(int rc)
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_WEATHER,/*qos*/0);
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_LAMP_STATUS,/*qos*/0);
         rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_STATION_INFO,/*qos*/0);
+        rc = mosqpp::mosquittopp::subscribe(NULL, IOTA_TOPIC_MOTION_SENSOR_STATUS,/*qos*/0);
     }
 
     // let station know of my existence
@@ -248,8 +249,22 @@ void IotaClient::on_message(const struct mosquitto_message *message)
         emit switchStatusChanged(pValue->channel, pValue->status);
     }//switch status reply
 
+    // motion
+    else if( !strcmp(message->topic, IOTA_TOPIC_MOTION_SENSOR_STATUS) )
+    {
+        if( message->payloadlen != sizeof(motion_sense_payload) )
+        {
+            qDebug() << "[IotaClient::on_message] Topic " << message->topic
+                     << ":\nPayload size incorrect. Ignoring";
+            return;
+        }
+        motion_sense_payload* pValue = (motion_sense_payload*)message->payload;
+        emit motionSensed(pValue->lastOffTimeMs, pValue->lastOnTimeMs, (pValue->currentState != 0));
+
+    } //motion
+
     // weather
-    if( !strcmp(message->topic, IOTA_TOPIC_WEATHER) )
+    else if( !strcmp(message->topic, IOTA_TOPIC_WEATHER) )
     {
         if( message->payloadlen != sizeof(weather_payload) )
         {
@@ -262,7 +277,7 @@ void IotaClient::on_message(const struct mosquitto_message *message)
     }//weather
 
     // station info
-    if( !strcmp(message->topic, IOTA_TOPIC_STATION_INFO) )
+    else if( !strcmp(message->topic, IOTA_TOPIC_STATION_INFO) )
     {
         if( message->payloadlen != sizeof(station_info) )
         {

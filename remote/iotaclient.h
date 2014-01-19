@@ -30,6 +30,7 @@ signals:
     void weatherStatusChanged(float celsius, int pascals, float altitudeMeters, int humidityPercent);
     void connectionStatusChanged(bool connected);
     void numRemotesChanged(int nRemotes);
+    void motionSensed(unsigned int lastOffTimeMs, unsigned int lastOnTime, bool isOnNow);
 
 private:
     void on_connect(int rc);

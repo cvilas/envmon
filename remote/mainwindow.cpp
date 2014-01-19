@@ -24,10 +24,17 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(&_timer, SIGNAL(timeout()), &_connStatus, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), &_stationStatus, SLOT(onTimer()));
     QObject::connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimer()));
-    QObject::connect(&_iotaClient, SIGNAL(switchStatusChanged(int,bool)), this, SLOT(onSwitchStatusChanged(int,bool)));
-    QObject::connect(&_iotaClient, SIGNAL(weatherStatusChanged(float,int,float,int)), this, SLOT(onWeatherStatusChanged(float, int, float, int)));
-    QObject::connect(&_iotaClient, SIGNAL(connectionStatusChanged(bool)), this, SLOT(onConnectionStatusChanged(bool)));
-    QObject::connect(&_iotaClient, SIGNAL(numRemotesChanged(int)), this, SLOT(onNumRemotesChanged(int)));
+    QObject::connect(&_timer, SIGNAL(timeout()), _pUi->motionSenseWidget, SLOT(onTimer()));
+    QObject::connect(&_iotaClient, SIGNAL(switchStatusChanged(int,bool)), this,
+                     SLOT(onSwitchStatusChanged(int,bool)));
+    QObject::connect(&_iotaClient, SIGNAL(weatherStatusChanged(float,int,float,int)),
+                     this, SLOT(onWeatherStatusChanged(float, int, float, int)));
+    QObject::connect(&_iotaClient, SIGNAL(connectionStatusChanged(bool)), this,
+                     SLOT(onConnectionStatusChanged(bool)));
+    QObject::connect(&_iotaClient, SIGNAL(numRemotesChanged(int)), this,
+                     SLOT(onNumRemotesChanged(int)));
+    QObject::connect(&_iotaClient, SIGNAL(motionSensed(unsigned int,unsigned int,bool)),
+                     _pUi->motionSenseWidget, SLOT(set(unsigned int,unsigned int,bool)));
 
     on_actionReconnect_triggered();
 

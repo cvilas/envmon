@@ -102,7 +102,7 @@ typedef struct _motion_sense_payload
 {
   uint32_t lastOffTimeMs;
   uint32_t lastOnTimeMs;
-  int8_t currentState;
+  int32_t currentState;
 }motion_sense_payload;
 
 #endif // IOTA_MESSAGES_H
