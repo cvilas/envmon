@@ -1,10 +1,5 @@
 IOTA - Cloud-based home automation, control and sensing
 
-This is my first experiment with the 'Internet of Things' (IoT) idea. Iota is an Arduino (Uno) based internet 
-enabled (with WiFi shield) device. It has two components - a base 'station' that sits at home, connected to 
-your home WiFi (and hence, the internet), and a 'remote' which is an app running on an internet-enabled Android 
-smartphone or PC. The base station has a few sensors (temperature, humidity, pressure, motion) and a 433MHz radio
-transmitter to turn on and off a bunch of radio controlled mains sockets. One can monitor the state of sensors
-using the remote app and also turn the mains sockets on and off. Simple stuff.
+This is my first experiment with the 'Internet of Things' (IoT) idea. Iota is an Arduino (Uno) based internet enabled (with WiFi shield) device. It has two components - a base 'station' that sits at home, connected to your home WiFi (and hence, the internet), and a 'remote' which is an app running on an internet-enabled Android smartphone or PC. The base station has a few sensors (temperature, humidity, pressure, motion) and a 433MHz radio transmitter to turn on and off a bunch of radio controlled mains sockets. One can monitor the state of sensors using the remote app and also turn the mains sockets on and off. Simple stuff.
 
 Read the Wiki pages for more details, 'issues' pages for outstanding issues. 
