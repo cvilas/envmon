@@ -76,7 +76,7 @@ void IotaClient::close(bool notify)
     while( !_messagePublished && (nTries < 100) )
     {
         ++nTries;
-        QThread::currentThread()->msleep(10);
+        QThread::msleep(10);
     }
 
     mosqpp::mosquittopp::disconnect();
