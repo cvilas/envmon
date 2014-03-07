@@ -25,12 +25,12 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h \
     indicator.h \
     switchstatusindicator.h \
-    ../connection_info.h \
+    ../station/connection_info.h \
     ../ThirdParty/mosquitto/include/mosquitto/mosquitto.h \
     ../ThirdParty/mosquitto/include/mosquitto/mosquittopp.h \
     connectionstatusindicator.h \
     stationstatusindicator.h \
-    ../iota_messages.h \
+    ../station/iota_messages.h \
     iotaclient.h \
     motionsensestatus.h
 
