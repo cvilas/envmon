@@ -5,8 +5,8 @@
 
 #define IOTA_BROKER_URL             "m10.cloudmqtt.com"
 #define IOTA_BROKER_PORT            10726
-#define IOTA_BROKER_USER            "ymvhmlxw"
-#define IOTA_BROKER_PASS            "Ind2uLCD4IJt"
+#define IOTA_BROKER_USER            ""
+#define IOTA_BROKER_PASS            ""
 
 // Home wifi connection parameters
 #define HOME_WIFI_SSID              ""
