@@ -9,7 +9,7 @@
 #define IOTA_BROKER_PASS            "Ind2uLCD4IJt"
 
 // Home wifi connection parameters
-#define HOME_WIFI_SSID              "nishvil"
-#define HOME_WIFI_PASS              "WITHYOUMAYTHEFORCEBE"
+#define HOME_WIFI_SSID              ""
+#define HOME_WIFI_PASS              ""
 
 #endif // CONNECTION_INFO_H
